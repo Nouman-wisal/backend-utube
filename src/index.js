@@ -9,9 +9,11 @@ dotenv.config({
 
 connectDB()
   .then(() => {
+    
     app.listen(process.env.PORT || 8000, () => {
       console.log(`SERVER CONNECTED AT PORT : ${process.env.PORT}`);
     });
+
     app.on("error", (error) => {
       console.log(`server failed to connect with db ${error}`);
     });
@@ -34,7 +36,7 @@ connectDB()
 
 
 
-  
+
 // import mongoose from "mongoose";
 // import express from 'express';
 // import { DB_NAME } from "./constansts";
