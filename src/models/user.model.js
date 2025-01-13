@@ -53,7 +53,7 @@ const userSchema = new Schema(
 // use async/await bcz encryption takes time,use next to pass the flag to next middleware.
 
 userSchema.pre("save", async function (next) {
-  if (!this.Modified("password")) return next();// "this" in this.modified represent the userSchema. 
+  if (!this.isModified("password"))  next();// "this" in this.modified represent the userSchema. 
 
   this.password = await bcrypt.hash(this.password, 10);
   next(); 

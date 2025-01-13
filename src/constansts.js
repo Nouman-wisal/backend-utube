@@ -1,1 +1,1 @@
-export const DB_NAME='UTUBE DATABASE'
+export const DB_NAME='UTUBE_DATABASE'
