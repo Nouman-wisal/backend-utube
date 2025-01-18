@@ -14,7 +14,7 @@ export default asyncHandler;
 // through  async await & try catch 
 // const asyncHandler = (apiRequestHandler) => async (req, res, next) => {
 //   try {
-//     return await apiRequestHandler(req,res,next)
+//      await apiRequestHandler(req,res,next)
 //   } 
 //   catch (error) {
 //     res.status(error.code || 500).json({
