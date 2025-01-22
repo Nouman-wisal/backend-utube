@@ -4,6 +4,7 @@ import { User } from "../models/user.model.js";
 import uploadOnCloudinary from "../utils/cloudinary.js";
 import ApiResponce from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken"
+import deleteFromCloudinary from "../utils/del_cloudinary.js";
 
 const registerUser = asyncHandler(async (req, res) => {
   // 1 get user details from front-end using postman
@@ -47,11 +48,7 @@ const registerUser = asyncHandler(async (req, res) => {
   const avatarLocalPath = req.files?.avatar[0]?.path;
   // const coverImageLocalPath= req.files?.coverImage[0]?.path;
   let coverImageLocalPath;
-  if (
-    req.files &&
-    Array.isArray(req.files.coverImage) &&
-    req.files.coverImage.length > 0
-  ) {
+  if (req.files &&Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
     coverImageLocalPath = req.files.coverImage[0].path;
   }
   // console.log(req.files);
@@ -80,8 +77,15 @@ const registerUser = asyncHandler(async (req, res) => {
     fullName: fullName.toLowerCase(),
     email,
     password,
-    avatar: avatar.url,
-    coverImage: coverImage?.url || "",
+    avatar:{
+     url:avatar.url,
+     public_id: avatar.public_id
+    },
+    coverImage: {
+      url:coverImage?.url || "",
+      public_id:coverImage?.public_id || ""
+
+    }
   });
   // You’ve created a new user in the database earlier in your program (via User.create()), and now you're checking if that user was successfully saved and can be retrieved from the database.
 
@@ -258,8 +262,8 @@ const refreshAcceessToken= asyncHandler(async(req,res)=>{
     
     //******************************************************** */
  
-   const {accessTokens,newRefreshTokens}=await generateAccessAndRefreshTokens(user._id)
-    console.log(newRefreshTokens);
+   const {accessTokens,refreshTokens}=await generateAccessAndRefreshTokens(user._id)
+    console.log(refreshTokens);
  
    const options={
      httpOnly: true,
@@ -269,9 +273,9 @@ const refreshAcceessToken= asyncHandler(async(req,res)=>{
    return res
    .status(200)
    .cookie("accessTokens",accessTokens,options)
-   .cookie("refreshTokens",newRefreshTokens,options)
+   .cookie("refreshTokens",refreshTokens,options)
    .json(
-     new ApiResponce(200,{accessTokens,refreshTokens:newRefreshTokens},"access tokens refreshed")
+     new ApiResponce(200,{accessTokens,refreshTokens},"access tokens refreshed")
    )
  } catch (error) {
   
@@ -280,5 +284,311 @@ const refreshAcceessToken= asyncHandler(async(req,res)=>{
  }
 })
 
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
 
-export { registerUser, loginUser,logoutUser,refreshAcceessToken };
+
+const changePassword=asyncHandler(async(req,res)=>{
+
+  // take the new and old password info from req.body
+  // use the method from user model to comapre the passwords
+  // querry the data base for user document/object with req.user._id using auth middleware
+  // change the password,then save the user document in db
+  // return res with status code and message
+  
+
+  const {oldPassword,newPassword}=req.body
+
+
+
+  const user= await User.findById(req.user._id)
+
+  const checkingValidity= await user.isPasswordCorrect(oldPassword)
+
+  if (!checkingValidity) {
+  throw new ApiError(400,"Invalid old password")
+  }
+  ////***********************************************////////
+
+  user.password=newPassword
+
+  await user.save({validateBeforeSave:false})
+  
+  return res
+  .status(200)
+  .json(new ApiResponce(200,{},"password changed successfully!!!"))
+
+})
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+const getCurrentUser=asyncHandler(async(req,res)=>{
+  // to get current user details you have to be logged in 
+  // get user document use auth(verifyJWT) req.user._id
+  //return res with the req.user._id 
+  return res
+  .status(200)
+  .json(new ApiResponce(200,req.user,"User fetched successfully"))
+
+})
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+const changeDetails=asyncHandler(async(req,res)=>{
+
+  // take the details from req.body
+  // check the details
+  // use middleware to get user doc by findByIdAndUpdate and update it
+  // return res -password
+
+
+  const {fullName,email}=req.body
+
+  if (!fullName || !email) {
+    throw new ApiError(400, "All fields are required")
+  }
+
+  ////***********************************************////////
+
+
+  const user=await User.findByIdAndUpdate(req.user._id,{ $set:{fullName,email:email} },{new:true}).select("-password")
+  console.log(user);
+
+  return res
+  .status(200)
+  .json(new ApiResponce(200,user,"fullName and email changed successfully"))
+
+})
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+const changeAvatar=asyncHandler(async(req,res)=>{
+
+  // get the new imagelocalpath using multer(req.file ) middleware
+  // check the imagelocalpath
+  // retrieve public_id of image
+  //  delete old image from cloudinary using public_id
+  // upload new file on cloudinary
+  // check the url of image given by cloudinary
+  // use the auth(verifyJWT) middleware to get user doc and update the image url
+  //return res
+
+  const avatarLocalPath=req.file?.path
+
+  if (!avatarLocalPath) {
+    throw new ApiError(400,"avatar file is missing")
+  }
+
+////***********************************************////////
+
+  const user= await User.findById(req.user._id)
+  const avatarPublicId=user.avatar.public_id
+
+  //  delete old image from cloudinary using public_id
+  const delOldImgFromCloudinary=await deleteFromCloudinary(avatarPublicId)
+
+  if (!delOldImgFromCloudinary) {
+    throw new ApiError(500,"failed to delete old file from cloudinary")
+  }
+
+  ////***********************************************////////
+
+
+  const avatar=await uploadOnCloudinary(avatarLocalPath)
+  
+  if (!(avatar.url && avatar.public_id)) {
+    throw new ApiError(400,"error while uploading avatar")
+  }
+
+  const userUpdated= await User.findByIdAndUpdate(user._id,
+    { $set:{avatar:{url:avatar.url , public_id:avatar.public_id}} }
+    ,{new:true})
+    .select("-password")
+
+  return res
+  .status(200)
+  .json(new ApiResponce(200,userUpdated,"avatar  changed successfully"))
+
+})
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+const changeCoverImage=asyncHandler(async(req,res)=>{
+
+  // get the new imagelocalpath using multer(req.file ) middleware
+  // check the imagelocalpath
+  // retrieve public_id of image
+  //  delete old image from cloudinary using public_id
+  // upload new file on cloudinary
+  // check the url of image given by cloudinary
+  // use the auth(verifyJWT) middleware to get user doc and update the image url
+  //return res
+
+
+  const coverImageLocalPath=req.file?.path
+
+  if (!coverImageLocalPath) {
+    throw new ApiError(400,"cover image file is missing")
+  }
+
+ ////***********************************************////////
+
+  const user= await User.findById(req.user._id)
+  const coverImagePublicId=user.avatar.public_id
+
+  //  delete old image from cloudinary using public_id
+  const delOldImgFromCloudinary=await deleteFromCloudinary(coverImagePublicId)
+
+  if (!delOldImgFromCloudinary) {
+    throw new ApiError(500,"failed to delete old file from cloudinary")
+  }
+
+  ////***********************************************////////
+
+
+  const coverImage=await uploadOnCloudinary(coverImageLocalPath)
+  
+  if (!(coverImage.url && coverImage.public_id)) {
+    throw new ApiError(400,"error while uploading coverImage")
+  }
+
+  const userUpdated= await User.findByIdAndUpdate(req.user._id,
+    { $set:{coverImage:{ url: coverImage.url , public_id: coverImage.public_id }} },{new:true})
+    .select("-password")
+
+  return res
+  .status(200)
+  .json(new ApiResponce(200,userUpdated,"coverImage  changed successfully"))
+
+})
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+
+// This code makes a controller called getUserChannelProfile that retrieves detailed profile information for a user (channel) based on their username. 
+// It uses MongoDB aggregation to fetch and process data, specifically joining user details and subscription information.
+
+// This controller fetches a user's channel profile information, including:
+// Basic Info: Name, username, avatar, email, etc.
+// Subscribers Count: How many people follow this user.
+// Channels Subscribed To Count: How many channels this user follows.
+// Subscription Status: Whether the current logged-in user/(you or me) (from req.user) is subscribed to this channel.
+
+//*********************////////*****************///////*************////**********************/******* */ */ */ */ */
+
+// Real-Life Analogy
+// Imagine you're running YouTube, and you want to see the profile of a content creator. This profile shows:
+
+// The creator's name and username (basic info).
+// Number of subscribers (how many people follow this creator).
+// Number of channels they are subscribed to (their activity on YouTube).
+// Whether you're subscribed to their channel (your relationship with them).
+// This function essentially gathers all that data for display.
+
+const getChannelProfile= asyncHandler(async(req,res)=>{
+
+  const {userName}=req.params // let's say user name is "hitesh choudry"
+
+  if (!userName?.trim()) {
+    throw new ApiError(400,"username is missing")
+  }
+
+  ///********************************************************* */
+
+  const chanel=await User.aggregate(
+    [
+      {
+        $match:{
+          userName:userName?.toLowerCase()
+        },
+      },
+      //***************** */
+      {
+        $lookup:{
+          from:"subscriptions",
+          localField:"_id",        // hitesh choudry ky user walay document ma jo _id ha
+          foreignField:"channel",  // subscriptions ky saray documents ka channel field match kar ky do,matlab jahan par bhi channel field ma localField wali id match karti ha wo saray do
+          as:"subscribers",
+        }
+      },
+      //********* *********/
+      {
+        $lookup:{
+          from:"subscriptions",
+          localField:"_id",
+          foreignField:"subscriber", //subscriptions ky saray documents ka subscriber field match kar ky do,matlab jahan par bhi subscriber field ma localField wali id match karti ha wo saray do
+          as:"subscribedTo"
+        }
+      },
+      //***************** */
+      {
+        $addFields:{
+          subscriberCount:{
+            $size:"$subscribers"
+          },
+            subscribedToOtherChannelCount:{
+            $size:"$subscribedTo"
+          },
+          isSubscribed:{
+            $cond:{
+              if:{$in:[req.user?._id,"$subscribers.subscriber"]},
+              then:true,
+              else:false
+  
+            }
+          }
+        }
+      },
+      //***************** */
+      {
+        $project:{
+          userName:1,
+          fullName:1,
+          email:1,
+          avatar:1,
+          coverImage:1,
+
+          subscriberCount:1,
+          subscribedToOtherChannelCount:1,
+          isSubscribed:1
+        }
+      } 
+    ]
+  )
+
+
+  if (!chanel?.length) { // btw chanel will return an array with single or multiple objs,depends on match in user
+    throw new ApiError(400,"chanel does not exist")
+  }
+
+  return res
+  .status(200)
+  .json(new ApiResponce(200,chanel[0],"User channel fetched successfully"))
+
+
+
+
+})
+
+export { registerUser,
+  loginUser,
+  logoutUser,
+  refreshAcceessToken,
+  changePassword,
+  getCurrentUser,
+  changeDetails,
+  changeAvatar,
+  changeCoverImage,
+  getChannelProfile, };

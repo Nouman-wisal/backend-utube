@@ -30,22 +30,38 @@ const userSchema = new Schema(
       required: [true, "Password is required"],
       unique: true,
     },
-    avatar: {
-      // cloudinary url here
-      type: String,
-      required: true,
+
+    avatar:{
+
+      url:{
+        type:String, // cloudinary url here
+        required:true
+      },
+      public_id:{  // cloudinary public_id here
+        type:String,
+        // required:true
+      }
     },
+
     coverImage: {
-      // cloudinary url here
-      type: String,
-    },
+      
+      url:{
+        type: String,// cloudinary url here
+      },
+      public_id:{
+        type: String,// cloudinary public_id here
+      }
+     },
+     
     refreshTokens: {
       type: String,
     },
-    watchHistory: {
+    watchHistory: [
+      {
       type: Schema.Types.ObjectId,
       ref: "Video",
-    },
+      }
+    ],
   },
   { timestamps: true }
 );
@@ -72,7 +88,7 @@ userSchema.methods.isPasswordCorrect= async function (password){
    // this.password is encrypted & password is given by user and result will be either true or false.
 }
 
-//********************************************* */
+//********************************************************************************* */
 
 //                              ** Generating Access tokens in userSchema **
  
