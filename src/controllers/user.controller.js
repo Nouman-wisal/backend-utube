@@ -5,6 +5,7 @@ import uploadOnCloudinary from "../utils/cloudinary.js";
 import ApiResponce from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken"
 import deleteFromCloudinary from "../utils/del_cloudinary.js";
+import mongoose from "mongoose";
 
 const registerUser = asyncHandler(async (req, res) => {
   // 1 get user details from front-end using postman
@@ -325,6 +326,7 @@ const changePassword=asyncHandler(async(req,res)=>{
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
+// this is to get your own info when youre logged in
 const getCurrentUser=asyncHandler(async(req,res)=>{
   // to get current user details you have to be logged in 
   // get user document use auth(verifyJWT) req.user._id
@@ -390,6 +392,7 @@ const changeAvatar=asyncHandler(async(req,res)=>{
 ////***********************************************////////
 
   const user= await User.findById(req.user._id)
+  
   const avatarPublicId=user.avatar.public_id
 
   //  delete old image from cloudinary using public_id
@@ -497,6 +500,7 @@ const changeCoverImage=asyncHandler(async(req,res)=>{
 // Whether you're subscribed to their channel (your relationship with them).
 // This function essentially gathers all that data for display.
 
+// this is to get the profile/info a youtube channel like chai auur code
 const getChannelProfile= asyncHandler(async(req,res)=>{
 
   const {userName}=req.params // let's say user name is "hitesh choudry"
@@ -542,12 +546,11 @@ const getChannelProfile= asyncHandler(async(req,res)=>{
             $size:"$subscribedTo"
           },
           isSubscribed:{
-            $cond:{
-              if:{$in:[req.user?._id,"$subscribers.subscriber"]},
-              then:true,
-              else:false
-  
-            }
+           $cond:{
+            if:{$in:[req.user._id,"$subscribers.subscriber"]},
+            then:true,
+            else:false,
+           }
           }
         }
       },
@@ -568,10 +571,11 @@ const getChannelProfile= asyncHandler(async(req,res)=>{
     ]
   )
 
-
-  if (!chanel?.length) { // btw chanel will return an array with single or multiple objs,depends on match in user
+  if (!chanel?.length) { // btw chanel will return an array with single or multiple objs
     throw new ApiError(400,"chanel does not exist")
   }
+// temp,just checking
+  console.log(chanel)
 
   return res
   .status(200)
@@ -583,8 +587,59 @@ const getChannelProfile= asyncHandler(async(req,res)=>{
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
-const watchHistory = asyncHandler( async (req,res)=>{
-  
+// this is  your  watch history ,the videos you,ve watched,funtionality of your app.
+const getWatchHistory = asyncHandler( async (req,res)=>{
+
+   // since you are logged in ,your user id is saved in auth.middleware(verifyJWT)
+
+   const user = await User.aggregate( //This starts a MongoDB aggregation pipeline on the User collection.
+    [
+      {
+        $match:{
+          _id: new Types.ObjectId(req.user._id)
+        }
+      },
+      {
+        $lookup:{
+          from:"videos",
+          localField:"watchHistory",
+          foreignField:"_id",
+          as:"watchHistory",
+          pipeline:[
+            {
+              $lookup:{
+                from:"users",
+                localField:"owner",
+                foreignField:"_id",
+                as:"owner",
+                pipeline:[
+                  {
+                    $project:{
+                      userName:1,
+                      fullName:1,
+                      avatar:1
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              $addFields:{
+                owner:{
+                  $first:"$owner"
+                }
+              }
+            }
+          ]
+        }
+      },
+    ])
+
+    return res
+    .status(200)
+    .json(new ApiResponce(200,user[0].watchHistory,"Watch history fetched successfully"))
+
+
 })
 
 export { registerUser,
@@ -596,4 +651,5 @@ export { registerUser,
   changeDetails,
   changeAvatar,
   changeCoverImage,
-  getChannelProfile, };
+  getChannelProfile,
+  getWatchHistory };

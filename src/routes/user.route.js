@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { loginUser, logoutUser, refreshAcceessToken, registerUser } from "../controllers/user.controller.js";
+import { loginUser, logoutUser, refreshAcceessToken, registerUser,changePassword, getCurrentUser, changeDetails, changeAvatar, changeCoverImage, getChannelProfile, getWatchHistory } from "../controllers/user.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import verifyJWT from "../middlewares/auth.middleware.js";
 
@@ -28,6 +28,16 @@ router.route("/login").post(loginUser);
 
 router.route("/logout").post(verifyJWT,logoutUser)
 router.route("/refresh-accessTokens").post(refreshAcceessToken)
+router.route("/change-password").post(verifyJWT,changePassword) //Use POST when an action involves extra steps (like security checks in changePassword).
+
+router.route("/get-currentUser").get(verifyJWT,getCurrentUser)
+
+router.route("/change-Details").patch(verifyJWT,changeDetails)
+router.route("change-Avatar").patch(verifyJWT,upload.single("avatar"),changeAvatar)
+router.route("change-coverImage").patch(verifyJWT,upload.single("coverImage"),changeCoverImage)
+
+router.route("/channelProfile").get(verifyJWT,getChannelProfile)
+router.route("/History").get(verifyJWT,getWatchHistory)
 
 
 export default router;

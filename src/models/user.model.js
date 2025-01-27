@@ -56,10 +56,10 @@ const userSchema = new Schema(
     refreshTokens: {
       type: String,
     },
-    watchHistory: [
-      {
-      type: Schema.Types.ObjectId,
-      ref: "Video",
+    watchHistory: [ // write this in localField in $lookup bcz this is the local field you want the IDs stored in ,aggregationpipeline
+      { 
+      type: Schema.Types.ObjectId,  // this in foreignField
+      ref: "Video",  //  in from 
       }
     ],
   },
