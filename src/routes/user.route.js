@@ -32,12 +32,12 @@ router.route("/change-password").post(verifyJWT,changePassword) //Use POST when 
 
 router.route("/get-currentUser").get(verifyJWT,getCurrentUser)
 
-router.route("/change-Details").patch(verifyJWT,changeDetails)
-router.route("change-Avatar").patch(verifyJWT,upload.single("avatar"),changeAvatar)
-router.route("change-coverImage").patch(verifyJWT,upload.single("coverImage"),changeCoverImage)
+router.route("/change-details").patch(verifyJWT,changeDetails)
+router.route("/change-avatar").patch(verifyJWT,upload.single("avatar"),changeAvatar)
+router.route("/change-coverImage").patch(verifyJWT,upload.single("coverImage"),changeCoverImage)
 
-router.route("/channelProfile").get(verifyJWT,getChannelProfile)
-router.route("/History").get(verifyJWT,getWatchHistory)
+router.route("/channel/:userName").get(verifyJWT,getChannelProfile)
+router.route("/history").get(verifyJWT,getWatchHistory)
 
 
 export default router;
